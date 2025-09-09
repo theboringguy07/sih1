@@ -31,9 +31,12 @@ def get_internships():
 
 @app.route('/api/recommend', methods=['POST'])
 def recommend_internships():
-    """Get personalized internship recommendations"""
+    """Get personalized internship recommendations with multilingual support"""
     try:
         user_data = request.get_json() or {}
+        
+        # Extract target language preference
+        target_language = user_data.get('target_language', 'en')
 
         # Accept partial profiles; default missing fields
         normalized_user = {
@@ -50,10 +53,18 @@ def recommend_internships():
 
         # Get recommendations
         recommendations = recommendation_engine.get_recommendations(normalized_user, internships)
+        
+        # Translate recommendations if target language is not English
+        if target_language != 'en':
+            recommendations = translation_service.translate_recommendations(
+                recommendations, target_language
+            )
 
         return jsonify({
             "recommendations": recommendations,
-            "count": len(recommendations)
+            "count": len(recommendations),
+            "target_language": target_language,
+            "translation_applied": target_language != 'en'
         })
 
     except Exception as e:
@@ -112,6 +123,63 @@ def create_profile():
             "message": "Profile created successfully",
             "profile": profile_data
         })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/languages', methods=['GET'])
+def get_supported_languages():
+    """Get list of supported languages"""
+    try:
+        languages = translation_service.get_supported_languages()
+        return jsonify(languages)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/translation-mode', methods=['GET'])
+def get_translation_mode():
+    """Get current translation mode and capabilities"""
+    try:
+        mode_info = translation_service.get_translation_mode()
+        return jsonify(mode_info)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/detect-language', methods=['POST'])
+def detect_language():
+    """Detect the language of input text"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({"error": "No text provided"}), 400
+        
+        detected_language = translation_service.detect_language(text)
+        normalized_text = translation_service.normalize_text(text, detected_language)
+        
+        return jsonify({
+            "detected_language": detected_language,
+            "original_text": text,
+            "normalized_text": normalized_text
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/process-query', methods=['POST'])
+def process_multilingual_query():
+    """Process a multilingual user query"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+        
+        processed_query = translation_service.process_multilingual_query(query)
+        
+        return jsonify(processed_query)
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500

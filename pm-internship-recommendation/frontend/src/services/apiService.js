@@ -72,6 +72,63 @@ const apiService = {
     } catch (error) {
       throw new Error('API service is not available');
     }
+  },
+
+  // Get supported languages
+  async getSupportedLanguages() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/languages`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to fetch supported languages');
+    }
+  },
+
+  // Detect language of text
+  async detectLanguage(text) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/detect-language`, {
+        text
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to detect language');
+    }
+  },
+
+  // Get recommendations with language preference
+  async getMultilingualRecommendations(profileData, targetLanguage = 'en') {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/recommend`, {
+        ...profileData,
+        target_language: targetLanguage
+      });
+      return response.data.recommendations;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to get multilingual recommendations');
+    }
+  },
+
+  // Process multilingual query
+  async processMultilingualQuery(queryText) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/process-query`, {
+        query: queryText
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to process multilingual query');
+    }
+  },
+
+  // Get translation mode and capabilities
+  async getTranslationCapabilities() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/translation-mode`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to get translation capabilities');
+    }
   }
 };
 

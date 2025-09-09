@@ -207,5 +207,74 @@ def get_sample_internships():
             },
             "application_deadline": "2024-02-26",
             "posted_date": "2024-01-21"
+        },
+        # Multilingual sample internships to demonstrate Indic NLP capabilities
+        {
+            "id": 13,
+            "title": "प्रौद्योगिकी प्रशिक्षु", # Technology Trainee in Hindi
+            "company": "तकनीकी समाधान प्राइवेट लिमिटेड",
+            "location": "नई दिल्ली",
+            "duration": "6 महीने",
+            "stipend": "₹16,000/माह",
+            "sector": "प्रौद्योगिकी",
+            "description": "सॉफ्टवेयर विकास में काम करें। वेब एप्लिकेशन बनाना और आधुनिक प्रौद्योगिकी सीखें।",
+            "requirements": {
+                "education": "कंप्यूटर विज्ञान में बी.टेक",
+                "skills": ["पायथन", "जावास्क्रिप्ट", "रिएक्ट", "सॉफ्टवेयर विकास"],
+                "experience": "नवा व्यक्ति"
+            },
+            "application_deadline": "2024-03-01",
+            "posted_date": "2024-01-25"
+        },
+        {
+            "id": 14,
+            "title": "డిజిటల్ మార్కెటింగ్ ఇంటర్న్", # Digital Marketing Intern in Telugu
+            "company": "క్రీఏటివ్ మీడియా హైదరాబాద్",
+            "location": "హైదరాబాద్",
+            "duration": "4 నెలలు",
+            "stipend": "₹14,000/నెల",
+            "sector": "మార్కెటింగ్",
+            "description": "డిజిటల్ మార్కెటింగ్ క్యాంపెయిన్ల్ మరియు కంటెంట్ అడినిస్ట్రేషన్లో పనిచేయండి। సోషల్ మీడియా మధ్ధ SEO నర్చండి।",
+            "requirements": {
+                "education": "ఎవరి గ్రాడుఏషన్ రేటు",
+                "skills": ["సోషల్ మీడియా", "కంటెంట్ రాస్తు", "SEO", "డిజిటల్ మార్కెటింగ్"],
+                "experience": "కొత్తవారు"
+            },
+            "application_deadline": "2024-03-05",
+            "posted_date": "2024-01-28"
+        },
+        {
+            "id": 15,
+            "title": "ஆராய்ச்சி பயிற்சி", # Research Trainee in Tamil
+            "company": "அறிவியல் ஆராய்ச்சி கேந்திரம்",
+            "location": "சென்னை",
+            "duration": "5 மாதங்கள்",
+            "stipend": "₹15,000/மாதம்",
+            "sector": "ஆராய்ச்சி",
+            "description": "கணினி அறிவியல் மற்றும் நுணையறிவியல் தொழில்நுட்பங்களில் ஆராய்ச்சி செய்யவும்। அறிக்கை பதிப்பகங்கள் மற்றும் அறிக்கை விளக்கங்கள் தயாரிக்கவும்।",
+            "requirements": {
+                "education": "இயன்திரவியல் அல்லது மேற்களவி கல்வியில் இருந்த படிப்பு",
+                "skills": ["ஆராய்ச்சி", "தரவு பிரிப்பு", "அறிக்கை விளக்கம்", "கணினி"],
+                "experience": "புதியவர்"
+            },
+            "application_deadline": "2024-03-10",
+            "posted_date": "2024-02-01"
+        },
+        {
+            "id": 16,
+            "title": "সফটওয়্যার ডেভেলপমেন্ট ইন্টার্ন", # Software Development Intern in Bengali
+            "company": "টেক সলিউশন্স বাংলাদেশ",
+            "location": "কলকাতা",
+            "duration": "6 মাস",
+            "stipend": "₹17,000/মাস",
+            "sector": "প্রযুক্তি",
+            "description": "ওয়েব এপ্লিকেশন ডেভেলপমেন্টে কাজ করুন। আধুনিক প্রযুক্তি ও প্রোগ্রামিং ভাষা শেখার সুযোগ।",
+            "requirements": {
+                "education": "কম্পিউটার সাইন্সে স্নাতক বা সমতুল্য",
+                "skills": ["জাভাস্ক্রিপ্ট", "পাইথন", "রিয়্যাক্ট", "প্রোগ্রামিং"],
+                "experience": "নতুন"
+            },
+            "application_deadline": "2024-03-15",
+            "posted_date": "2024-02-05"
         }
     ]
