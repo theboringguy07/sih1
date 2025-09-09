@@ -20,7 +20,7 @@ const Home = () => {
         </h3>
         
         <Link to="/profile" className="btn btn-primary">
-          📝 {translate('fillProfileForm')}
+           {translate('fillProfileForm')}
         </Link>
         
         <Link to="/upload-resume" className="btn btn-secondary">
@@ -29,10 +29,10 @@ const Home = () => {
       </div>
       
       <div style={{ marginTop: '40px', color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px' }}>
-        <p>✅ {translate('aiPoweredRecommendations')}</p>
-        <p>🎯 Top 3-5 personalized suggestions</p>
-        <p>📱 Mobile-friendly interface</p>
-        <p>🌐 Regional language support</p>
+        <p>{translate('aiPoweredRecommendations')}</p>
+        <p>Top 3-5 personalized suggestions</p>
+        <p>Mobile-friendly interface</p>
+        <p>Regional language support</p>
       </div>
     </div>
   );

@@ -190,10 +190,10 @@ const ResumeUpload = ({ setUserProfile, setRecommendations }) => {
         <div style={{ marginTop: '30px', color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px' }}>
           <h4>What we'll extract from your resume:</h4>
           <ul style={{ textAlign: 'left', marginTop: '10px' }}>
-            <li>📚 Education details</li>
-            <li>🎯 Skills and technologies</li>
-            <li>📍 Location information</li>
-            <li>📧 Contact information</li>
+            <li>Education details</li>
+            <li>Skills and technologies</li>
+            <li>Location information</li>
+            <li>Contact information</li>
           </ul>
         </div>
       </div>

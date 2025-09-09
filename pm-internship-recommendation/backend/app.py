@@ -33,22 +33,29 @@ def get_internships():
 def recommend_internships():
     """Get personalized internship recommendations"""
     try:
-        user_data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['education', 'skills', 'location', 'interests']
-        for field in required_fields:
-            if field not in user_data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
-        
+        user_data = request.get_json() or {}
+
+        # Accept partial profiles; default missing fields
+        normalized_user = {
+            'education': (user_data.get('education') or '').strip(),
+            'skills': user_data.get('skills') or [],
+            'location': (user_data.get('location') or '').strip(),
+            'interests': user_data.get('interests') or []
+        }
+        # Ensure types
+        if not isinstance(normalized_user['skills'], list):
+            normalized_user['skills'] = [str(normalized_user['skills'])]
+        if not isinstance(normalized_user['interests'], list):
+            normalized_user['interests'] = [str(normalized_user['interests'])]
+
         # Get recommendations
-        recommendations = recommendation_engine.get_recommendations(user_data, internships)
-        
+        recommendations = recommendation_engine.get_recommendations(normalized_user, internships)
+
         return jsonify({
             "recommendations": recommendations,
             "count": len(recommendations)
         })
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

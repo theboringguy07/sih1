@@ -1,141 +1,94 @@
+"""
+Lightweight translation service with optional neural model.
+
+
+By default, runs in a safe fallback mode that returns the original text so the
+backend starts quickly without heavyweight dependencies. If transformers + torch
+are installed and the model is available, it will use IndicTrans2.
+"""
+
+# Optional neural dependencies (heavy). Wrapped to avoid import-time crashes.
+try:
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # type: ignore
+    import torch  # type: ignore
+    _NEURAL_DEPS_AVAILABLE = True
+except Exception:
+    AutoModelForSeq2SeqLM = None  # type: ignore
+    AutoTokenizer = None  # type: ignore
+    torch = None  # type: ignore
+    _NEURAL_DEPS_AVAILABLE = False
+
 class TranslationService:
     def __init__(self):
-        # Basic translation dictionary for common phrases
-        # In production, you'd integrate with proper Indic NLP libraries
-        self.translations = {
-            'hi': {  # Hindi
-                'Welcome': 'स्वागत',
-                'Internship': 'प्रशिक्षण',
-                'Recommendations': 'सिफारिशें',
-                'Skills': 'कौशल',
-                'Education': 'शिक्षा',
-                'Location': 'स्थान',
-                'Profile': 'प्रोफ़ाइल',
-                'Upload Resume': 'रिज्यूमे अपलोड करें',
-                'Get Recommendations': 'सिफारिशें प्राप्त करें',
-                'Technology': 'तकनीक',
-                'Business': 'व्यापार',
-                'Marketing': 'विपणन',
-                'Finance': 'वित्त',
-                'Engineering': 'इंजीनियरिंग',
-                'Submit': 'जमा करें',
-                'Next': 'अगला',
-                'Back': 'वापस',
-                'Search': 'खोजें',
-                'Apply Now': 'अभी आवेदन करें',
-                'Duration': 'अवधि',
-                'Stipend': 'वेतन',
-                'Company': 'कंपनी',
-                'Description': 'विवरण',
-                'Requirements': 'आवश्यकताएं',
-                'Name': 'नाम',
-                'Email': 'ईमेल',
-                'Phone': 'फोन',
-                'Age': 'उम्र',
-                'Gender': 'लिंग',
-                'Address': 'पता',
-                'Interests': 'रुचियां',
-                'Experience': 'अनुभव',
-                'Match Score': 'मैच स्कोर',
-                'Why this matches': 'यह क्यों मैच करता है'
-            },
-            'te': {  # Telugu
-                'Welcome': 'స్వాగతం',
-                'Internship': 'ఇంటర్న్‌షిప్',
-                'Recommendations': 'సిఫార్సులు',
-                'Skills': 'నైపుణ్యాలు',
-                'Education': 'విద్య',
-                'Location': 'స్థానం',
-                'Profile': 'ప్రొఫైల్',
-                'Upload Resume': 'రెజ్యూమే అప్‌లోడ్ చేయండి',
-                'Get Recommendations': 'సిఫార్సులు పొందండి',
-                'Technology': 'సాంకేతికత',
-                'Business': 'వ్యాపారం',
-                'Marketing': 'మార్కెటింగ్',
-                'Finance': 'ఫైనాన్స్',
-                'Engineering': 'ఇంజనీరింగ్',
-                'Submit': 'సమర్పించు',
-                'Next': 'తరువాత',
-                'Back': 'వెనుకకు',
-                'Search': 'వెతకండి',
-                'Apply Now': 'ఇప్పుడు దరఖాస్తు చేయండి',
-                'Duration': 'వ్యవధి',
-                'Stipend': 'స్టైపెండ్',
-                'Company': 'కంపెనీ',
-                'Description': 'వివరణ',
-                'Requirements': 'అవసరాలు'
-            },
-            'ta': {  # Tamil
-                'Welcome': 'வரவேற்கிறோம்',
-                'Internship': 'பயிற்சி',
-                'Recommendations': 'பரிந்துரைகள்',
-                'Skills': 'திறன்கள்',
-                'Education': 'கல்வி',
-                'Location': 'இடம்',
-                'Profile': 'சுயவிவரம்',
-                'Upload Resume': 'ரெசுமே பதிவேற்றவும்',
-                'Get Recommendations': 'பரிந்துரைகளைப் பெறுங்கள்',
-                'Technology': 'தொழில்நுட்பம்',
-                'Business': 'வணிகம்',
-                'Marketing': 'சந்தைப்படுத்தல்',
-                'Finance': 'நிதி',
-                'Engineering': 'பொறியியல்',
-                'Submit': 'சமர்ப்பிக்கவும்',
-                'Next': 'அடுத்தது',
-                'Back': 'பின்னால்',
-                'Search': 'தேடுங்கள்',
-                'Apply Now': 'இப்போது விண்ணప்பிக்கவும்'
-            },
-            'bn': {  # Bengali
-                'Welcome': 'স্বাগতম',
-                'Internship': 'ইন্টার্নশিপ',
-                'Recommendations': 'সুপারিশ',
-                'Skills': 'দক্ষতা',
-                'Education': 'শিক্ষা',
-                'Location': 'অবস্থান',
-                'Profile': 'প্রোফাইল',
-                'Upload Resume': 'জীবনবৃত্তান্ত আপলোড করুন',
-                'Get Recommendations': 'সুপারিশ পান',
-                'Technology': 'প্রযুক্তি',
-                'Business': 'ব্যবসা',
-                'Marketing': 'বিপণন',
-                'Finance': 'অর্থ',
-                'Engineering': 'প্রকৌশল',
-                'Submit': 'জমা দিন',
-                'Next': 'পরবর্তী',
-                'Back': 'পেছনে',
-                'Search': 'অনুসন্ধান',
-                'Apply Now': 'এখনই আবেদন করুন'
-            }
+        # Mode: "neural" if deps available, else "fallback"
+        self.mode = "neural" if _NEURAL_DEPS_AVAILABLE else "fallback"
+
+        self.model_name = "ai4bharat/indictrans2-en-indic-1B"
+        self.tokenizer = None
+        self.model = None
+        self.device = "cpu"
+
+        if self.mode == "neural":
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name, trust_remote_code=True)
+                self.device = "cuda" if torch and torch.cuda.is_available() else "cpu"  # type: ignore[attr-defined]
+                self.model.to(self.device)
+            except Exception as load_error:
+                # Fall back silently to keep server healthy
+                print(f"TranslationService: neural model unavailable ({load_error}). Falling back to passthrough mode.")
+                self.mode = "fallback"
+                self.tokenizer = None
+                self.model = None
+
+        # Language codes supported by IndicTrans2
+        self.language_map = {
+            'en': 'eng_Latn',
+            'hi': 'hin_Deva',
+            'te': 'tel_Telu',
+            'ta': 'tam_Taml',
+            'bn': 'ben_Beng'
         }
-    
+
     def translate(self, text, target_language='hi'):
         """
-        Translate text to target language
-        This is a basic implementation using dictionary lookup
-        In production, integrate with proper Indic NLP translation APIs
+        Translate text using IndicTrans2 model
         """
         try:
-            if target_language not in self.translations:
-                return text  # Return original if language not supported
-            
-            translation_dict = self.translations[target_language]
-            
-            # Simple word/phrase replacement
-            translated_text = text
-            for english_text, translated in translation_dict.items():
-                translated_text = translated_text.replace(english_text, translated)
-            
+            if target_language not in self.language_map:
+                return text
+
+            if self.mode != "neural" or not self.model or not self.tokenizer:
+                # Safe passthrough to avoid heavy deps and long startup
+                return text
+
+            tgt_lang = self.language_map[target_language]
+
+            inputs = self.tokenizer(
+                text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True
+            ).to(self.device)
+
+            with torch.no_grad():  # type: ignore[union-attr]
+                generated_tokens = self.model.generate(
+                    **inputs,
+                    forced_bos_token_id=self.tokenizer.lang_code_to_id[tgt_lang]
+                )
+
+            translated_text = self.tokenizer.batch_decode(
+                generated_tokens,
+                skip_special_tokens=True
+            )[0]
+
             return translated_text
-        
+
         except Exception as e:
             print(f"Translation error: {str(e)}")
-            return text  # Return original text if translation fails
-    
+            return text
+
     def get_supported_languages(self):
-        """
-        Get list of supported languages
-        """
         return {
             'en': 'English',
             'hi': 'हिंदी (Hindi)',
@@ -143,55 +96,44 @@ class TranslationService:
             'ta': 'தமிழ் (Tamil)',
             'bn': 'বাংলা (Bengali)'
         }
-    
+
     def translate_internship_data(self, internship, target_language):
-        """
-        Translate internship data to target language
-        """
         if target_language == 'en':
             return internship
-        
+
         translated_internship = internship.copy()
-        
-        # Translate specific fields
         fields_to_translate = ['title', 'company', 'description', 'sector']
-        
+
         for field in fields_to_translate:
             if field in translated_internship:
                 translated_internship[field] = self.translate(
-                    translated_internship[field], 
+                    translated_internship[field],
                     target_language
                 )
-        
-        # Translate requirements
+
         if 'requirements' in translated_internship:
             if 'skills' in translated_internship['requirements']:
-                translated_skills = []
-                for skill in translated_internship['requirements']['skills']:
-                    translated_skills.append(self.translate(skill, target_language))
-                translated_internship['requirements']['skills'] = translated_skills
-        
+                translated_internship['requirements']['skills'] = [
+                    self.translate(skill, target_language)
+                    for skill in translated_internship['requirements']['skills']
+                ]
+
         return translated_internship
-    
+
     def translate_recommendations(self, recommendations, target_language):
-        """
-        Translate a list of internship recommendations
-        """
         if target_language == 'en':
             return recommendations
-        
+
         translated_recommendations = []
-        
         for recommendation in recommendations:
             translated_rec = self.translate_internship_data(recommendation, target_language)
-            
-            # Translate match reasons
+
             if 'match_reasons' in translated_rec:
-                translated_reasons = []
-                for reason in translated_rec['match_reasons']:
-                    translated_reasons.append(self.translate(reason, target_language))
-                translated_rec['match_reasons'] = translated_reasons
-            
+                translated_rec['match_reasons'] = [
+                    self.translate(reason, target_language)
+                    for reason in translated_rec['match_reasons']
+                ]
+
             translated_recommendations.append(translated_rec)
-        
+
         return translated_recommendations

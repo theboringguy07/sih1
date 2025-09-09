@@ -35,7 +35,39 @@ An AI-based internship recommendation system for the PM Internship Scheme that h
 - Node.js 16+
 - npm or yarn
 
-### Backend Setup
+### 🎨 Automated Setup (Recommended)
+
+**One-command setup and run:**
+```bash
+python setup.py
+```
+
+This will:
+1. ✅ Set up both backend and frontend automatically
+2. ✅ Create virtual environment and install all dependencies
+3. ✅ Download required spaCy models
+4. ✅ Ask if you want to start the servers immediately
+5. ✅ Run both Flask backend (port 5000) and React frontend (port 3000)
+
+### 🚀 Alternative Setup Commands
+
+```bash
+# Setup and automatically start servers (no prompt)
+python setup.py --start
+
+# Setup only, don't start servers
+python setup.py --no-start
+
+# Skip setup, just start servers (if already set up)
+python setup.py --run-only
+
+# Or use the quick run script
+python run.py
+```
+
+### 🛠️ Manual Setup (Advanced Users)
+
+#### Backend Setup
 
 1. **Navigate to backend directory:**
 ```bash
@@ -66,7 +98,7 @@ python app.py
 
 The backend will be available at `http://localhost:5000`
 
-### Frontend Setup
+#### Frontend Setup
 
 1. **Navigate to frontend directory:**
 ```bash

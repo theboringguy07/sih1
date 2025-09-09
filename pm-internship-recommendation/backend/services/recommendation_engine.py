@@ -158,9 +158,7 @@ class RecommendationEngine:
         return min(matches / len(user_interests), 1.0)
 
     def _extract_education_level(self, education):
-        """
-        Extract education level from education string
-        """
+        
         education_lower = education.lower()
         
         patterns = {
@@ -184,15 +182,13 @@ class RecommendationEngine:
         Generate human-readable reasons for the match
         """
         reasons = []
-        
-        # Education match
+
         if fuzz.partial_ratio(
             user_data.get('education', '').lower(),
             internship.get('requirements', {}).get('education', '').lower()
         ) > 70:
             reasons.append("Educational background matches requirements")
-        
-        # Skills match
+
         user_skills = user_data.get('skills', [])
         required_skills = internship.get('requirements', {}).get('skills', [])
         matched_skills = []
@@ -205,15 +201,13 @@ class RecommendationEngine:
         
         if matched_skills:
             reasons.append(f"Skills match: {', '.join(matched_skills[:3])}")
-        
-        # Location match
+
         if fuzz.partial_ratio(
             user_data.get('location', '').lower(),
             internship.get('location', '').lower()
         ) > 60:
             reasons.append("Location preference matches")
         
-        # Interests match
         user_interests = user_data.get('interests', [])
         sector = internship.get('sector', '')
         matched_interests = []
