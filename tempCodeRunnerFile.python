@@ -1,0 +1,486 @@
+import spacy
+import PyPDF2
+import docx
+import re
+import json
+from typing import Dict, List, Optional, Any
+from PIL import Image
+import pytesseract
+from io import BytesIO
+import email
+from email.mime.text import MIMEText
+import phonenumbers
+from datetime import datetime
+
+class ResumeParser:
+    def __init__(self):
+        # Load spaCy models
+        try:
+            self.nlp_en = spacy.load("en_core_web_sm")
+        except OSError:
+            print("English spaCy model not found. Please install: python -m spacy download en_core_web_sm")
+            self.nlp_en = None
+        
+        try:
+            self.nlp_multi = spacy.load("xx_ent_wiki_sm")
+        except OSError:
+            print("Multi-language spaCy model not found. Please install: python -m spacy download xx_ent_wiki_sm")
+            self.nlp_multi = None
+        
+        # Skill patterns and categories
+        self.skill_patterns = {
+            'technical': [
+                'python', 'java', 'javascript', 'html', 'css', 'react', 'angular', 'vue',
+                'node.js', 'express', 'django', 'flask', 'spring', 'sql', 'mysql', 'postgresql',
+                'mongodb', 'redis', 'aws', 'azure', 'docker', 'kubernetes', 'git', 'linux',
+                'machine learning', 'artificial intelligence', 'data science', 'tensorflow',
+                'pytorch', 'scikit-learn', 'pandas', 'numpy', 'matplotlib', 'tableau',
+                'power bi', 'excel', 'r', 'stata', 'spss', 'photoshop', 'illustrator',
+                'figma', 'sketch', 'autocad', 'solidworks'
+            ],
+            'soft_skills': [
+                'communication', 'leadership', 'teamwork', 'problem solving', 'analytical',
+                'creative', 'adaptable', 'organized', 'time management', 'presentation',
+                'negotiation', 'customer service', 'project management', 'agile', 'scrum'
+            ],
+            'languages': [
+                'english', 'hindi', 'bengali', 'telugu', 'marathi', 'tamil', 'gujarati',
+                'urdu', 'kannada', 'malayalam', 'punjabi', 'assamese', 'oriya'
+            ]
+        }
+        
+        # Education patterns
+        self.education_patterns = {
+            'degrees': [
+                'b.tech', 'btech', 'b.e.', 'be', 'bachelor of technology', 'bachelor of engineering',
+                'm.tech', 'mtech', 'm.e.', 'me', 'master of technology', 'master of engineering',
+                'bca', 'bachelor of computer applications', 'mca', 'master of computer applications',
+                'bsc', 'b.sc', 'bachelor of science', 'msc', 'm.sc', 'master of science',
+                'bcom', 'b.com', 'bachelor of commerce', 'mcom', 'm.com', 'master of commerce',
+                'ba', 'b.a.', 'bachelor of arts', 'ma', 'm.a.', 'master of arts',
+                'mba', 'master of business administration', 'phd', 'ph.d.', 'doctorate',
+                'diploma', '12th', 'intermediate', '10th', 'matriculation', 'sslc'
+            ],
+            'fields': [
+                'computer science', 'information technology', 'electronics', 'mechanical',
+                'civil', 'electrical', 'chemical', 'biotechnology', 'aerospace',
+                'mathematics', 'physics', 'chemistry', 'biology', 'commerce',
+                'economics', 'finance', 'marketing', 'management', 'psychology',
+                'sociology', 'english', 'hindi', 'history', 'geography'
+            ]
+        }
+        
+    def extract_text_from_pdf(self, file_stream: BytesIO) -> str:
+        """Extract text from PDF file"""
+        try:
+            pdf_reader = PyPDF2.PdfReader(file_stream)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            return text
+        except Exception as e:
+            print(f"Error extracting text from PDF: {e}")
+            return ""
+    
+    def extract_text_from_docx(self, file_stream: BytesIO) -> str:
+        """Extract text from DOCX file"""
+        try:
+            doc = docx.Document(file_stream)
+            text = ""
+            for paragraph in doc.paragraphs:
+                text += paragraph.text + "\n"
+            return text
+        except Exception as e:
+            print(f"Error extracting text from DOCX: {e}")
+            return ""
+    
+    def extract_text_from_image(self, file_stream: BytesIO) -> str:
+        """Extract text from image using OCR"""
+        try:
+            image = Image.open(file_stream)
+            text = pytesseract.image_to_string(image, lang='eng+hin')
+            return text
+        except Exception as e:
+            print(f"Error extracting text from image: {e}")
+            return ""
+    
+    def parse_resume(self, file_stream: BytesIO, filename: str) -> Dict[str, Any]:
+        """Main function to parse resume and extract information"""
+        
+        # Extract text based on file type
+        file_extension = filename.lower().split('.')[-1]
+        
+        if file_extension == 'pdf':
+            text = self.extract_text_from_pdf(file_stream)
+        elif file_extension in ['docx', 'doc']:
+            text = self.extract_text_from_docx(file_stream)
+        elif file_extension in ['jpg', 'jpeg', 'png', 'tiff']:
+            text = self.extract_text_from_image(file_stream)
+        else:
+            raise ValueError(f"Unsupported file format: {file_extension}")
+        
+        if not text.strip():
+            raise ValueError("Could not extract text from the resume")
+        
+        # Parse extracted text
+        parsed_data = self.extract_information(text)
+        parsed_data['raw_text'] = text
+        parsed_data['filename'] = filename
+        
+        return parsed_data
+    
+    def extract_information(self, text: str) -> Dict[str, Any]:
+        """Extract structured information from resume text"""
+        
+        result = {
+            'personal_info': {},
+            'skills': {'technical': [], 'soft_skills': [], 'languages': []},
+            'education': [],
+            'experience': [],
+            'projects': [],
+            'certifications': [],
+            'contact_info': {}
+        }
+        
+        # Use spaCy for NER
+        if self.nlp_en:
+            doc = self.nlp_en(text)
+            
+            # Extract named entities
+            for ent in doc.ents:
+                if ent.label_ == "PERSON" and not result['personal_info'].get('name'):
+                    # Get the first person name (usually the candidate)
+                    result['personal_info']['name'] = ent.text.strip()
+                elif ent.label_ in ["GPE", "LOC"]:  # Geographic/Location entities
+                    if 'locations' not in result['personal_info']:
+                        result['personal_info']['locations'] = []
+                    result['personal_info']['locations'].append(ent.text)
+                elif ent.label_ == "ORG":  # Organizations
+                    if 'organizations' not in result:
+                        result['organizations'] = []
+                    result['organizations'].append(ent.text)
+        
+        # Extract contact information
+        result['contact_info'] = self.extract_contact_info(text)
+        
+        # Extract skills
+        result['skills'] = self.extract_skills(text)
+        
+        # Extract education
+        result['education'] = self.extract_education(text)
+        
+        # Extract experience
+        result['experience'] = self.extract_experience(text)
+        
+        # Extract projects
+        result['projects'] = self.extract_projects(text)
+        
+        # Extract certifications
+        result['certifications'] = self.extract_certifications(text)
+        
+        return result
+    
+    def extract_contact_info(self, text: str) -> Dict[str, Any]:
+        """Extract contact information"""
+        contact_info = {}
+        
+        # Email extraction
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        emails = re.findall(email_pattern, text)
+        if emails:
+            contact_info['email'] = emails[0]  # Take the first email
+        
+        # Phone number extraction (Indian format)
+        phone_patterns = [
+            r'(\+91[-.\s]?)?[6-9]\d{9}',  # Indian mobile
+            r'(\+91[-.\s]?)?[0-9]{2,4}[-.\s]?[0-9]{6,8}',  # Indian landline
+            r'\b\d{10}\b'  # Simple 10-digit
+        ]
+        
+        phones = []
+        for pattern in phone_patterns:
+            phones.extend(re.findall(pattern, text))
+        
+        if phones:
+            # Clean and validate phone numbers
+            cleaned_phones = []
+            for phone in phones:
+                if isinstance(phone, tuple):
+                    phone = ''.join(phone)
+                phone = re.sub(r'[-.\s]', '', phone)
+                if len(phone) >= 10:
+                    cleaned_phones.append(phone)
+            
+            if cleaned_phones:
+                contact_info['phone'] = cleaned_phones[0]
+        
+        # LinkedIn profile
+        linkedin_pattern = r'linkedin\.com/in/[\w-]+'
+        linkedin_matches = re.findall(linkedin_pattern, text, re.IGNORECASE)
+        if linkedin_matches:
+            contact_info['linkedin'] = linkedin_matches[0]
+        
+        # GitHub profile
+        github_pattern = r'github\.com/[\w-]+'
+        github_matches = re.findall(github_pattern, text, re.IGNORECASE)
+        if github_matches:
+            contact_info['github'] = github_matches[0]
+        
+        return contact_info
+    
+    def extract_skills(self, text: str) -> Dict[str, List[str]]:
+        """Extract skills from resume text"""
+        skills = {'technical': [], 'soft_skills': [], 'languages': []}
+        text_lower = text.lower()
+        
+        for category, skill_list in self.skill_patterns.items():
+            for skill in skill_list:
+                if skill.lower() in text_lower:
+                    skills[category].append(skill)
+        
+        # Remove duplicates
+        for category in skills:
+            skills[category] = list(set(skills[category]))
+        
+        return skills
+    
+    def extract_education(self, text: str) -> List[Dict[str, str]]:
+        """Extract education information"""
+        education = []
+        text_lower = text.lower()
+        lines = text.split('\n')
+        
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            
+            # Check for degree patterns
+            for degree in self.education_patterns['degrees']:
+                if degree in line_lower:
+                    edu_entry = {'degree': degree}
+                    
+                    # Look for field of study
+                    for field in self.education_patterns['fields']:
+                        if field in line_lower:
+                            edu_entry['field'] = field
+                            break
+                    
+                    # Look for year patterns in current and nearby lines
+                    year_pattern = r'\b(19|20)\d{2}\b'
+                    years = re.findall(year_pattern, line)
+                    if not years and i > 0:
+                        years = re.findall(year_pattern, lines[i-1])
+                    if not years and i < len(lines) - 1:
+                        years = re.findall(year_pattern, lines[i+1])
+                    
+                    if years:
+                        edu_entry['year'] = years[-1]  # Take the most recent year
+                    
+                    # Look for institution name (usually appears before or after degree)
+                    if i > 0:
+                        prev_line = lines[i-1].strip()
+                        if len(prev_line) > 5 and not any(d in prev_line.lower() for d in self.education_patterns['degrees']):
+                            edu_entry['institution'] = prev_line
+                    
+                    education.append(edu_entry)
+                    break
+        
+        return education
+    
+    def extract_experience(self, text: str) -> List[Dict[str, str]]:
+        """Extract work experience"""
+        experience = []
+        lines = text.split('\n')
+        
+        # Common experience section headers
+        exp_headers = ['experience', 'work experience', 'employment', 'career', 'professional experience']
+        
+        in_experience_section = False
+        current_job = {}
+        
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            line_lower = line_clean.lower()
+            
+            # Check if we're entering experience section
+            if any(header in line_lower for header in exp_headers):
+                in_experience_section = True
+                continue
+            
+            if in_experience_section:
+                # Look for job titles and companies
+                # Pattern: Job Title at Company or Job Title - Company
+                if ' at ' in line_clean or ' - ' in line_clean:
+                    if current_job:
+                        experience.append(current_job)
+                    
+                    parts = re.split(r' at | - ', line_clean, 1)
+                    if len(parts) == 2:
+                        current_job = {
+                            'position': parts[0].strip(),
+                            'company': parts[1].strip()
+                        }
+                
+                # Look for dates
+                date_pattern = r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}|(\d{1,2}[\/\-]\d{4})|(\d{4})'
+                dates = re.findall(date_pattern, line_lower)
+                if dates and current_job:
+                    current_job['duration'] = line_clean
+        
+        if current_job:
+            experience.append(current_job)
+        
+        return experience
+    
+    def extract_projects(self, text: str) -> List[Dict[str, str]]:
+        """Extract project information"""
+        projects = []
+        lines = text.split('\n')
+        
+        project_headers = ['projects', 'project', 'personal projects', 'academic projects']
+        
+        in_project_section = False
+        current_project = {}
+        
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            line_lower = line_clean.lower()
+            
+            # Check if we're entering projects section
+            if any(header in line_lower for header in project_headers):
+                in_project_section = True
+                continue
+            
+            if in_project_section:
+                # Look for project titles (usually start with bullet points or numbers)
+                if re.match(r'^[\•\-\*\d\.]', line_clean):
+                    if current_project:
+                        projects.append(current_project)
+                    
+                    current_project = {'title': line_clean.lstrip('•-*0123456789. ')}
+                elif current_project and not re.match(r'^[A-Z]', line_clean):
+                    # This might be a project description
+                    if 'description' not in current_project:
+                        current_project['description'] = line_clean
+                    else:
+                        current_project['description'] += ' ' + line_clean
+        
+        if current_project:
+            projects.append(current_project)
+        
+        return projects
+    
+    def extract_certifications(self, text: str) -> List[str]:
+        """Extract certifications"""
+        certifications = []
+        lines = text.split('\n')
+        
+        cert_headers = ['certifications', 'certification', 'certificates', 'awards', 'achievements']
+        
+        in_cert_section = False
+        
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            line_lower = line_clean.lower()
+            
+            # Check if we're entering certification section
+            if any(header in line_lower for header in cert_headers):
+                in_cert_section = True
+                continue
+            
+            if in_cert_section:
+                # Look for certification entries
+                if re.match(r'^[\•\-\*\d\.]', line_clean):
+                    cert_name = line_clean.lstrip('•-*0123456789. ')
+                    if cert_name:
+                        certifications.append(cert_name)
+        
+        return certifications
+    
+    def format_for_profile(self, parsed_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Format parsed resume data for profile creation"""
+        
+        profile_data = {}
+        
+        # Personal information
+        if parsed_data.get('personal_info', {}).get('name'):
+            profile_data['name'] = parsed_data['personal_info']['name']
+        
+        # Contact information
+        contact = parsed_data.get('contact_info', {})
+        if contact.get('email'):
+            profile_data['email'] = contact['email']
+        if contact.get('phone'):
+            profile_data['phone'] = contact['phone']
+        
+        # Skills
+        all_skills = []
+        skills = parsed_data.get('skills', {})
+        for category, skill_list in skills.items():
+            all_skills.extend(skill_list)
+        
+        if all_skills:
+            profile_data['skills'] = ', '.join(all_skills[:10])  # Limit to top 10 skills
+        
+        # Education (take the highest degree)
+        education = parsed_data.get('education', [])
+        if education:
+            # Simple mapping for education levels
+            degree_hierarchy = {
+                'phd': 'Post-Graduate',
+                'ph.d.': 'Post-Graduate',
+                'mtech': 'Post-Graduate',
+                'm.tech': 'Post-Graduate',
+                'mca': 'Post-Graduate',
+                'msc': 'Post-Graduate',
+                'm.sc': 'Post-Graduate',
+                'mba': 'Post-Graduate',
+                'ma': 'Post-Graduate',
+                'm.a.': 'Post-Graduate',
+                'btech': 'Graduate',
+                'b.tech': 'Graduate',
+                'be': 'Graduate',
+                'b.e.': 'Graduate',
+                'bca': 'Graduate',
+                'bsc': 'Graduate',
+                'b.sc': 'Graduate',
+                'bcom': 'Graduate',
+                'b.com': 'Graduate',
+                'ba': 'Graduate',
+                'b.a.': 'Graduate',
+                'diploma': 'Diploma',
+                '12th': '12th',
+                'intermediate': '12th',
+                '10th': '10th'
+            }
+            
+            highest_degree = 'Graduate'  # Default
+            for edu in education:
+                degree = edu.get('degree', '').lower()
+                if degree in degree_hierarchy:
+                    highest_degree = degree_hierarchy[degree]
+                    break
+            
+            profile_data['education_level'] = highest_degree
+            
+            # Field of study
+            if education[0].get('field'):
+                profile_data['field_of_study'] = education[0]['field']
+        
+        # Experience (calculate years)
+        experience = parsed_data.get('experience', [])
+        if experience:
+            profile_data['experience_years'] = len(experience)  # Simple count
+        
+        return profile_data
+
+# Global instance
+resume_parser = ResumeParser()

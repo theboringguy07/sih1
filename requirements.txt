@@ -1,0 +1,13 @@
+Flask==3.0.3
+Flask-Cors==4.0.1
+flask-sqlalchemy==3.1.1
+SQLAlchemy==2.0.31
+python-dotenv==1.0.1
+spacy==3.7.4
+PyPDF2==3.0.1
+python-docx==1.1.2
+rapidfuzz==3.9.7
+indic-nlp-library==0.92
+scikit-learn==1.5.1
+pandas==2.2.2
+numpy==2.0.1
