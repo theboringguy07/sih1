@@ -7,7 +7,12 @@ from services.resume_parser import ResumeParser
 from services.translation_service import TranslationService
 from data.sample_data import get_sample_internships
 
-load_dotenv()
+# Load environment variables safely
+try:
+    load_dotenv()
+except Exception as e:
+    print(f"Warning: Could not load .env file: {e}")
+    print("Continuing with default configuration...")
 
 app = Flask(__name__)
 CORS(app)
@@ -19,6 +24,21 @@ translation_service = TranslationService()
 
 # Sample internships data
 internships = get_sample_internships()
+
+@app.route('/', methods=['GET'])
+def root():
+    return jsonify({
+        "message": "PM Internship Recommendation API",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/api/health",
+            "internships": "/api/internships",
+            "recommend": "/api/recommend",
+            "parse-resume": "/api/parse-resume",
+            "translate": "/api/translate",
+            "profile": "/api/profile"
+        }
+    })
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
